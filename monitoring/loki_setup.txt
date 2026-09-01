@@ -1,0 +1,129 @@
+Grafana Loki Monitoring Setup
+=============================
+
+1. Overview
+
+Grafana Loki was configured as a local log aggregation system for the
+DevOps application.
+
+The Docker Loki logging driver was used to forward container logs directly
+from Docker to the locally running Loki instance.
+
+Log flow:
+
+Docker Container
+      |
+      v
+Loki Docker Logging Driver
+      |
+      v
+Grafana Loki
+      |
+      v
+Loki HTTP API / LogQL
+
+
+2. Start Loki
+
+Loki was started locally using the official Grafana Loki Docker image:
+
+docker run -d \
+  --name loki \
+  -p 3100:3100 \
+  grafana/loki:latest
+
+Verify that Loki is running:
+
+docker ps
+
+Check Loki readiness:
+
+curl http://localhost:3100/ready
+
+Expected output:
+
+ready
+
+
+3. Configure the Loki Docker Logging Driver
+
+The Loki Docker logging driver was installed using:
+
+docker plugin install grafana/loki-docker-driver:latest \
+  --alias loki \
+  --grant-all-permissions
+
+Verify that the plugin is enabled:
+
+docker plugin ls
+
+Expected result:
+
+NAME          DESCRIPTION
+loki:latest   Loki Logging Driver
+
+
+4. Run the Application Container with Loki Logging
+
+The DevOps application Docker image was configured to use the Loki
+logging driver:
+
+docker run -d \
+  --name loki-test \
+  --log-driver=loki \
+  --log-opt=loki-url=http://host.docker.internal:3100/loki/api/v1/push \
+  devops-hello:latest
+
+Verify that the container is running:
+
+docker ps
+
+The container should appear as:
+
+loki-test
+
+
+5. Verify Application Logs
+
+The application logs can be viewed directly with Docker:
+
+docker logs loki-test
+
+Expected output:
+
+Hello, DevOps!
+
+
+6. Query Logs from Loki
+
+Loki was queried using its HTTP API and LogQL.
+
+The following command was used:
+
+curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={container_name="loki-test"}' \
+  --data-urlencode 'limit=20'
+
+The query successfully returned the application log:
+
+Hello, DevOps!
+
+
+7. Result
+
+The monitoring setup was successfully verified.
+
+The application log was forwarded from the Docker container to Grafana
+Loki using the Loki Docker logging driver.
+
+Verified components:
+
+- Grafana Loki running on port 3100
+- Loki Docker logging driver installed and enabled
+- Docker container using the Loki logging driver
+- Application logs successfully forwarded to Loki
+- Logs successfully retrieved from Loki using a LogQL query
+
+The final verified log message was:
+
+Hello, DevOps!
